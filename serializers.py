@@ -14,15 +14,11 @@ class StudentOnboardingSerializer(serializers.Serializer):
         required=True,
         help_text="Unique student ID (e.g., STU-10001)",
     )
-    full_name = serializers.CharField(
-        max_length=100, min_length=2, required=True
-    )
+    full_name = serializers.CharField(max_length=100, min_length=2, required=True)
     email = serializers.EmailField(required=True)
 
     # Categorical & Educational Constraints
-    grade_level = serializers.IntegerField(
-        min_value=1, max_value=12, required=True
-    )
+    grade_level = serializers.IntegerField(min_value=1, max_value=12, required=True)
 
     # Binary DCYN (Data Consistency Yes/No) Logic Library Fields
     requires_lsa_support = serializers.BooleanField(
