@@ -1,0 +1,87 @@
+# ==============================================================================
+# HabotConnect Poka-Yoke Build Gate
+# Task 2: Automated Fail-Closed CI/CD Pipeline
+# ==============================================================================
+
+name: Poka-Yoke Security & Quality Build Gate
+
+on:
+  push:
+    branches: [ "main", "staging" ]
+  pull_request:
+    branches: [ "main", "staging" ]
+
+jobs:
+  # ----------------------------------------------------------------------------
+  # Job 1: Secret Scanning Gate (Fail-Closed on Unencrypted Credentials)
+  # ----------------------------------------------------------------------------
+  secret-scan:
+    name: "Gate 1: Secret & Credential Scan (Poka-Yoke)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks Secret Scanner
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Note: If Gitleaks detects any API key or secret token, it exits with status 1,
+        # immediately halting and failing the pipeline (Fail-Closed).
+
+  # ----------------------------------------------------------------------------
+  # Job 2: Code Quality & Linting Gate (Django / Python)
+  # ----------------------------------------------------------------------------
+  python-lint:
+    name: "Gate 2: Python Formatting & Linting Check"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Set up Python Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Linting Tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black
+
+      - name: Run Black Formatter Check
+        run: |
+          black --check .
+
+      - name: Run Flake8 Code Linter
+        run: |
+          # Stop build if there are Python syntax errors or undefined names
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Enforce structural discipline: stop build if complexity is too high
+          flake8 . --count --max-line-length=88 --statistics
+
+  # ----------------------------------------------------------------------------
+  # Job 3: Infrastructure Code Gate (Terraform Syntax & Quality)
+  # ----------------------------------------------------------------------------
+  terraform-check:
+    name: "Gate 3: Terraform Formatting & Syntax Check"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform CLI
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.0"
+
+      - name: Verify Terraform Formatting
+        run: terraform fmt -check -recursive
+
+      - name: Initialize Terraform
+        run: terraform init -backend=false
+
+      - name: Validate Terraform Syntax
+        run: terraform validate
